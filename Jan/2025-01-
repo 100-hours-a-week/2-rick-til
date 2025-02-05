@@ -1,0 +1,800 @@
+## 1. 자바의 메모리 영역과 컴파일과정을 서술하시오
+
+### 메모리 영역
+
+  Java는 JVM이라는 가상환경에서 코드를 실행함.
+  JVM에는 Runtime Data Area에서 메모리를 할당하는데, 다음과 같은 종류가 있음
+
+1. **Method 영역**
+    
+     클래스와 메서드, 전역 상수에 대한 정보를 담고 있음
+    
+2. **Heap영역**
+    
+     프로그램 내에서 생성된 모든 객체, 배열 정보를 담고 있음
+     가장 큰 메모리 영역으로, 확장되거나 축소 될 수 있음
+     가비지 컬렉터가 주로 여기서 작동함
+    
+3. **Stack영역**
+    
+     스레드 생성시 자동으로 생성됨
+     스레드에서 메소드 실행시 Stack영역안에 
+     스택프레임이라는 공간을 생성
+    
+     스택프레임에는 메소드실행 시 필요한
+     매개변수, 지역변수 등이 들어감
+    
+     메소드가 종료되면 스택프레임을 Stack영역에서 제거
+    
+4. **Native Method** 영역
+    
+    C/C++로 작성된 메서드를 Java에서 실행 할 수 있게 관련 데이터를 저장
+    
+5. **PC Register**
+    
+      스레드 생성시 자동으로 생성, 
+      각 스레드는 자신의 PC Register로
+      현재 실행중인 명령어 주소를 저장
+    
+
+### 컴파일 과정
+
+  컴파일 최종목표: Java 코드를 Byte Code로 변경하는 것
+
+1. 자바 코드 생성
+2. 컴파일러(javac) 호출
+3. 컴파일 실행
+    1. 랙티컬 분석: 자바 코드를 토큰 형태로 분리
+    2. 파싱: 토큰들을 AST(추상 트리?)형태로 구성, 이과정에서 문법적 오류 검출
+    3. 의미 분석: AST를 기반으로 변수가 알맞은지, 접근 제어를 위반하였는지 의미적 오류 검출
+    4. 최적화: 최적화
+    5. Byte Code생성: `.class`파일 생성됨
+
+## 2. 가비지 컬렉션(Garbage Collection)에 대해 정의하고 
+어떻게 동작하는지 서술하시오
+
+### 정의
+
+  **Heap 영역**에 할당된 객체 중 더 이상 참조되지 않는 객체를 자동으로 식별하고, 
+  이를 메모리에서 제거하여 메모리 자원을 효율적으로 관리하는 과정
+
+### 사용하는 이유
+
+1. 메모리 누수 방지
+2. 메모리 효율성 향상
+
+### 그럼 GC는 무조건 좋은가?
+
+  당연히 아니다, 자동으로 처리해준다고 해도
+  메모리가 정확히 언제 해제되는지 알 수 없어 제어하기 힘들며
+
+  **GC가 동작하는 동안에는 다른 동작을 멈추기 때문에** 
+  오버헤드가 발생한다는 문제점 이 있다
+
+  이를 전문용어로 **STW(Stop-The-World)**라고 한다
+
+<aside>
+<img src="/icons/info-alternate_yellow.svg" alt="/icons/info-alternate_yellow.svg" width="40px" />
+
+**STW(Stop-The-World)란?**
+
+!https://blog.kakaocdn.net/dn/UGGwm/btrIRGekM2e/FYXCBc6UYcIl1p2Uk5fGIK/img.png
+
+STW (Stop The World)GC를 수행하기 위해 JVM이 프로그램 실행을 멈추는 현상을 의미
+GC가 작동하는 동안 GC 관련 Thread를 제외한 모든 Thread는 멈추게 되어 
+서비스 이용에 차질이 생길 수 있다.
+
+따라서 이 시간을 최소화 시키는 것이 쟁점이다.
+
+</aside>
+
+### 제거할 객체 판단 방식
+
+  GC는 객체의 **생명주기**를 기반으로 제거 대상을 판단한다
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/1b74d75f-d467-40c5-a6c4-43abbdde4bd7/image.png)
+
+**객체의 생명 주기**
+
+1. **객체 생성**
+    
+    `new` 키워드를 사용하여 Heap 영역에 객체가 생성됨.
+    
+2. **참조 유지**
+    
+    생성된 객체는 하나 이상의 참조 변수를 통해 접근된다.
+    
+    쉽게 말해 어떤 변수가 해당 객체를 쓰고 있다(참조 하고 있다)라는 뜻인데, 
+    이를 **접근 가능 상태(Enreachable)**이라고 한다.
+    
+3. **참조 해제**
+    
+    참조 변수가 `null`로 설정되거나, 다른 객체를 참조하게 되면 기존 객체에 대한 참조가 해제된다.
+    
+    즉, 어떠한 변수도 해당 객체를 사용하고 있지 않을 때, 
+    이를 **접근 불가능 상태(Unreachable)**라고 한다.
+    
+4. **가비지 컬렉션 대상**
+    
+    더 이상 참조되지 않는 객체(Unreachable한 객체)는 가비지 컬렉션의 대상이 된다
+    
+5. **메모리 회수**
+    
+    GC가 해당 객체를 식별하고, 메모리를 회수
+    
+
+즉, 특정 개체가 참조되지 않고 있다면 GC가 이를 인지하여 할당된 메모리를 해제한다
+
+### **Mark-and-Sweep** 알고리즘
+
+  GC에서 사용되는 객체를 솎아 내는 내부 알고리즘으로,
+  GC가 동작하는 아주 **기초적인 청소 방법**이라고 생각하면 된다
+
+![mark-and-sweep-gc-in-javascript-04.gif](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/a3bbce06-3078-4827-8539-07c30952508c/mark-and-sweep-gc-in-javascript-04.gif)
+
+동작 원리는 간단하다.
+
+가비지 컬렉션이 될 대상 객체를 **식별(Mark)**하고 **제거(Sweep)**하며 
+객체가 제거되어 파편화된 메모리 영역을 앞에서부터
+채워나가는 작업(Compaction)을 수행하게 된다
+
+- **Mark 과정**
+    
+    먼저 Root Space로부터 그래프 순회를 통해 연결된 객체들을 찾아내어
+    각각 어떤 객체를 참조하고 있는지 찾아서 마킹한다
+    
+- **Sweep 과정**
+    
+    참조하고 있지 않은 객체 즉 **Unreachable**객체들을 Heap에서 제거한다.
+    
+- **Compact 과정**
+    
+    Sweep 후에 분산된 객체들을 Heap의 시작 주소로 모아 메모리가 할당된 부분과 그렇지 않은 부분으로 압축한다 (가비지 컬렉터 종류에 따라 하지 않는 경우도 있음)
+    
+
+## 힙 메모리 구조
+
+  JVM의 힙(Heap) 영역은 생성된 객체(인스턴스)와 배열이 저장되는 공간이다.
+
+  Java는 프로그램이 실행되는 동안 필요에 따라 메모리를 할당, 해제하는데 
+  이를 **동적 메모리 할당(Dynamic Memory Allocation)**이라고 한다.
+
+힙 영역은 처음 설계될 때 다음 2가지를 전제로 설계 되었다
+
+<aside>
+💡
+
+1. **대부분의 객체는 금방 접근 불가능 상태(Unreachable)가 된다**
+2. **오래된 객체에서 새로운 객체로의 참조는 아주 적게 존재한다**
+</aside>
+
+즉, 객체는 대부분 일회성이며, 메모리에 오랫동안 남아있다는 경우는 드물다는 것이다
+
+이러한 특성을 이용하여 Heap영역은 객체의 생존 기간에 따라 물리적으로 메모리를 둘로 나누었다
+
+이는 **Young 영역(Young Generation)**, **Old영역(Old Generation)**으로 이루어진다
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/0c3f8300-7d81-459b-83f7-f48731e1833b/image.png)
+
+### **1. Young 영역(Young Generation)**
+
+- 새롭게 생성된 객체가 할당 되는 영역
+- 대부분의 객체는 금방 Unreachable 상태가 되기 때문에, 
+대부분의 객체가 Young영역에 있다가 사라짐
+- Young영역에 대한 가비지 컬렉터를 **Minor GC**라고 부름
+
+### **2. Old 영역(Old Generation)**
+
+- Young영역에서 Enreachable상태를 유지하여 살아남은 객체가 복사되는 영역
+- Young영역보다 크게 할당되며, 가비지도 적게 발생함
+- Old 영역에 대한 가비지 컬렉터를 **Major GC**혹은 **Full GC**라고 함
+
+Old 영역이 큰 이유는 Young영역의 수명이 짧은 객체들은 대부분 큰 공간을 필요로 하지 않으며 큰 객체들은 Old 영역으로 바로 할당되기 때문이다
+
+- **Q1. 오랫동안 살아 남았다는 기준은 무엇인가?**
+    
+    각 객체에는 age라는 상태값이 할당 되어 있음.
+    
+    생성된 객체는 GC 실행될 때마다 Enreachable상태이면 age를 1상승 시킴
+    age가 특정값에 다다르면 해당 객체를 Old 영역으로 이동시킴
+    기본 임계값은 31(age가 6bit)이며, 이는 설정으로 바꿀 수 있음 
+    
+    ~~살아남았다는건, 강하다는것~~
+    
+- **Q2. 어떤 크기의 객체부터 생성 시 바로 Old 영역에 할당되는가?**
+    
+    이건 GC의 종류에 따라 다른데, G1 GC의 경우 
+    힙영역을 Young, Old로 쪼개지 않고 여러개의 Region으로 나눈다.
+    
+    G1 GC에서 단일 Region의 크기는 기본적으로 1MB이며,
+    단일 Region크기의 절반 이상인 객체는 Old 영역으로 할당한다.
+    또한, 필요시 G1 GC의 기본 Region크기를 변경하는 것도 가능하다.
+    
+
+### Young 영역의 구조
+
+  Young영역은 다시 **Eden, survivor1, survivor2**의 3가지영역으로 나누어진다
+
+1. **Eden**
+    - `new` 를 통해 새롭게 생성된 객체가 위치
+    - GC실행후 살아남은 객체들은 Survivor영역으로 보내짐
+2. **Survivor 0/ Survivor 1**
+    - 최소 한번의 GC작업에서 살아남은 객체들이 존재
+    - Survivor 0나 Survivior 1를 번갈아 비워가며 동작
+    
+    - **Q. 왜 Survivor 0/ Survivor 1를 하나를 비워두는가?**
+        
+        밑의 GC의 작동 방식을 보면 알겠지만, 둘 중 하나를 안쓰는 것이 아니다
+        Eden, Survivor 0,1을 각각의 **바구니**처럼 사용한다.
+        
+        **Eden**바구니가 꽉 차면 객체들을 한번 솎아낸다음
+        **Survivor 0**에 넣어 두었다가,
+        Eden이 다시 꽉차면 이번엔 **Survivor 1**로 솎아낸 다음
+        
+        **Suvivor 0**에 솎아놨던 것들 중 유효한 것만
+        다시 **Suvivor 1**로 옮긴다고 생각하면 된다
+        
+        **이러한 방식의 장점**
+        
+        - **간편한 메모리 관리**
+            
+            하나의 Survivor 공간이 항상 비어있기 때문에, 
+            복사 과정에서 충돌 없이 새로운 살아남은 객체를 저장할 수 있다
+            
+        - **메모리 단편화 방지**
+            
+            복사 기반 알고리즘은 살아있는 객체를 연속된 메모리 공간으로 
+            복사함으로써 메모리 단편화를 줄일 수 있음
+            
+        - **효율성 향상**
+        복사 과정이 간단해지고, 메모리 할당과 해제가 명확해져 GC의 효율성이 향상됨.
+
+## 가비지 컬렉터의 동작 방식
+
+  가비지 컬렉터(GC)는 크게 Young 영역에서 실행되는 Minor GC와 
+  Old 영역에서 실행되는 Major GC로 나눌 수 있다.
+
+### **1. Minor GC과정**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/e2aaa7b5-29d6-482c-95aa-0efb0ecba88f/image.png)
+
+99%의 객체는 Young Generation에 생성된다.
+또한, Old Generation에 비해 상대적으로 작기 때문에
+**GC가 영역을 훑어 보는데 적은 시간이 걸린다**
+
+위와 같은 이유로 Young Generation에서 실행되는 GC는 **Minor GC**라고 한다
+
+1. **처음 생성된 객체는 Eden 영역에 위치**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/70788dcb-8dbf-4fe3-a823-2c93daaa7e5b/image.png)
+
+1. **객체가 계속 생성되어 Eden영역이 꽉차게 되면 Minor GC발생**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/bed09b1b-bbe4-4d62-8cdb-04d95d855216/image.png)
+
+1. **Mark를 동작해 Researchable 객체를 탐색**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/317bcae9-b208-47b2-9914-bdb56b5957b6/image.png)
+
+1. **살아남은 객체는 둘중 하나의 Survival 0으로 이동**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/850705b4-020e-4185-bd02-8d44ab52f060/image.png)
+
+1. **Eden영역에서 사용되지 않는 객체는 메모리를 해제(Sweep)**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/4b8fb238-a607-4814-b882-34ea2f6e4d5c/image.png)
+
+1. **살아남은 객체들의 age값이 1증가**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/bc84fcd9-3849-4413-bee0-7c1e1c8018f8/image.png)
+
+1. **다시 Eden이 다시 차게 되면 Minor GC가 발생하고 Mark로 유효 객체 판별**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/342960cb-5fe5-4ea8-be64-c28c4bec7b17/image.png)
+
+1. **Marking 한 객체들을 비어있는 Survivor 1으로 옮기고 Sweep**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/cf7c6274-b634-4e45-86a9-7340e7efdf8b/image.png)
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/befed164-4c03-4209-81e0-790f38b8ea0c/image.png)
+
+1. **위 과정을 반복**
+    
+    ![ddd.gif](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/b998fda9-414c-46f4-b641-8f5fb13285dc/ddd.gif)
+    
+
+### 2. Major GC
+
+  MajorGC도 Minor GC와 작동 방식은 유사하다
+
+1. **객체의 age가 임계값(임의로 8로 설정)에 도달하게 되면,**
+
+!https://blog.kakaocdn.net/dn/c3ZKIh/btrITnE39P2/cL0xncLtqvQxqOmxmyt8V0/img.png
+
+1. **이 객체들은 Old Generation 으로 이동된다. 이를 promotion 이라 부른다.**
+
+!https://blog.kakaocdn.net/dn/GJGPb/btrIUmFRmQO/SZDmkA2vbBcqKcXrNiIhOk/img.png
+
+1. **위의 과정이 반복되어 공간(메모리)가 부족하게 되면 Major GC가 발생되게 된다.**
+
+!https://blog.kakaocdn.net/dn/mnBRi/btrIUm6WXIl/obIsxDpns6wEkkKfjdvLCK/img.gif
+
+**Major GC**는 Old 영역은 데이터가 가득 차면 GC를 실행하는 단순한 방식이다.
+
+Old 영역에 할당된 메모리가 허용치를 넘게 되면, Old 영역에 있는 모든 객체들을 검사하여 참조되지 않는 객체들을 한꺼번에 삭제하는 Major GC가 실행되게 된다.
+
+하지만 Old Generation은 Young Generation에 비해 상대적으로 큰 공간을 가지고 있어, 이 공간에서 메모리 상의 **객체 제거에 많은 시간이 걸리게 된다.**
+
+예를들어 Young 영역은 일반적으로 Old 영역보다 크키가 작기 때문에
+GC가 보통 0.5초에서 1초 사이에 끝난다.
+
+그렇기 때문에 Minor GC는 애플리케이션에 크게 영향을 주지 않는다.
+
+하지만 Old 영역의 Major GC는 일반적으로 Minor GC보다 시간이 오래걸리며,
+10배 이상의 시간을 사용한다.
+
+바로 여기서 본문 초반에 소개했던 **Stop-The-World** 문제가 발생하게 된다.
+
+Major GC가 일어나면 Thread가 멈추고 Mark and Sweep 작업을 해야 해서
+CPU에 부하를 주기 때문에 멈추거나 버벅이는 현상이 일어나기 때문이다.
+
+따라서 자바 개발진들은 끊임 없이 **가비지 컬렉션 알고리즘을 발전** 시켜왔다.
+
+자세한건 GC에 유형에서 더 살펴보도록 하자
+
+~~많이~~참고: [https://inpa.tistory.com/entry/JAVA-☕-가비지-컬렉션GC-동작-원리-알고리즘-💯-총정리](https://inpa.tistory.com/entry/JAVA-%E2%98%95-%EA%B0%80%EB%B9%84%EC%A7%80-%EC%BB%AC%EB%A0%89%EC%85%98GC-%EB%8F%99%EC%9E%91-%EC%9B%90%EB%A6%AC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%F0%9F%92%AF-%EC%B4%9D%EC%A0%95%EB%A6%AC)
+
+## 3. Java 외에 다른 언어 한가지를 정하고 어떻게 
+Garbage Collection이 동작하는지 서술하고 비교해보세요.
+
+Java가 공간을 나누고 공간이 꽉 찰 때마다 GC를 실행한다면,
+Python에서는 객체가 참조되는 수를 세고 있다가 카운트가 0이되면 메모리 할당을 해제 하는 방식을 사용
+
+이를 **참조 카운팅(Reference Counting)**이라고 함
+
+허나 참조 카운팅 방식만 사용하면, 두개 이상의 객체가 서로를 참조하고
+외부의 참조를 받지 않으면 메모리가 낭비되는 치명적 문제가 있음
+
+```python
+class A:
+    def __init__(self):
+        self.b = None
+
+class B:
+    def __init__(self):
+        self.a = None
+
+a = A() // 객체 a생성
+b = B() // 객체 b생성
+a.b = b // 객체 a가 객체 b를 참조
+b.a = a // 객체 b가 객체 a를 참조
+```
+
+위 와 같은 상황을 **순환참조**라고 함.
+
+따라서 Python은 주기적으로 내부에 순환참조를 하는 
+객체가 있는 지 확인하고 제거
+
+이를 전문으로 하는 GC를 순환 GC라고함
+
+Java와 파이썬의 GC를 비교 정리하면 다음과 같다
+
+| **특징** | **자바 GC** | **파이썬 GC** |
+| --- | --- | --- |
+| **메모리 관리 방식** | 주로 **세대별 가비지 컬렉션**을 사용하여 Young과 Old Generation 관리 | **참조 카운팅**과 **순환 참조 GC**를 
+병행하여 메모리 관리 |
+| **객체 회수 시점** | GC 주기마다 결정, GC의 동작 방식은 종류마다 조금씩 다름 | 참조 카운트가 0이 되는 즉시 또는 순환 참조 발견 시 해제 |
+| **순환 참조 처리** | 대부분의 자바 GC 알고리즘에서 자동으로 처리 | 순환 참조는 별도의 
+순환 참조 GC에 의해 처리 |
+| **GC 튜닝** | 다양한 JVM 옵션을 통해 
+GC 동작 방식과 성능을 조정 가능 | 제한적인 GC 튜닝 옵션 제공 |
+| **성능 및 효율성** | 대형 애플리케이션에 최적화된 다양한 GC 알고리즘으로 높은 성능 제공 | 참조 카운팅으로 빠른 메모리 해제, 순환 참조 해결은 추가 오버헤드 |
+| **메모리 단편화 문제** | G1 GC 등 일부 알고리즘은 메모리 단편화를 최소화 | 참조 카운팅 자체는 단편화를 일으키지 않으나, 순환 참조 GC가 단편화 처리 필요 |
+
+## 4. Java GC도 여러 종류가 있습니다. 
+어떤 차이점이 있는지 간단하게 서술하시오.
+
+JVM에서는 5가지 GC를 사용하고 있다.
+
+기본적으로 Mark-and-Sweep을 응용해서 파생된 친구들이다
+
+GC를 수행할때는 다음 종류 중 가장 적합한 한가지 종류의 GC만 사용하는데,
+Java 11 이후부터는 **G1 GC**가 기본 가비지 컬렉터로 설정되는 경우가 많다
+
+## GC의 종류
+
+### **1)Serial GC**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/a2b1482c-8b3d-4a54-b202-ce49e594de1e/image.png)
+
+- 서버의 CPU 코어가 1개일 때 사용하기 위해 개발된 가장 단순한 GC
+- GC를 처리하는 쓰레드가 1개 (싱글 쓰레드) 이어서 가장 stop-the-world 시간이 길다
+- Minor GC 에는 Mark-Sweep을 사용하고, Major GC에는 Mark-Sweep-Compact를 사용한다.
+- 보통 실무에서 사용하는 경우는 없다 
+(디바이스 성능이 안좋아서 CPU 코어가 1개인 경우에만 사용)
+
+### **2) Parallel GC**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/10630aa0-0f77-47e2-b1b8-70ba97c2d1f9/image.png)
+
+- Java 8의 디폴트 GC
+- Serial GC와 기본적인 알고리즘은 같지만, 
+Young 영역의 Minor GC를 **멀티 쓰레드**로 수행 (Old 영역은 여전히 싱글 쓰레드)
+- Serial GC에 비해 stop-the-world 시간 감소
+
+### **3) CMS GC**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/670480a5-e9ef-4600-b1d7-130d74d04876/image.png)
+
+- 어플리케이션의 쓰레드와 GC 쓰레드가 동시에 실행되어 
+stop-the-world 시간을 최대한 줄이기 위해 고안된 GC
+- 단, GC 과정이 매우 복잡해짐.
+- GC 대상을 파악하는 과정이 복잡한 여러단계로 수행되기 때문에
+다른 GC 대비 CPU 사용량이 높다
+- 메모리 파편화 문제
+- CMS GC는 Java9 버젼부터 deprecated 되었고 결국 **Java14에서는 사용이 중지**
+
+### **4) G1 GC**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/e9bad116-bb1a-4f0c-960e-26a5ce365224/image.png)
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/af53c987-8146-4cc5-bc42-1ed49ae21c85/image.png)
+
+- CMS GC를 대체하기 위해 jdk 7 버전에서 최초로 release된 GC
+- **Java 9+ 버전의 디폴트 GC로 지정**
+- 4GB 이상의 힙 메모리, Stop the World 시간이 0.5초 정도 필요한 상황에 사용 
+(Heap이 너무작을경우 미사용 권장)
+- 기존의 GC 알고리즘에서는 Heap 영역을 물리적으로 고정된 Young / Old 영역으로 나누어 사용하였지만,G1 gc는 아예 이러한 개념을 뒤엎는 **Region**이라는 개념을 새로 도입하여 사용.
+    
+    **전체 Heap 영역을 Region이라는 영역으로 체스같이 분할**하여 상황에 따라 
+    Eden, Survivor, Old 등 역할을 고정이 아닌 동적으로 부여
+    
+- Garbage로 가득찬 영역을 빠르게 회수하여 빈 공간을 확보하므로, 
+결국 GC 빈도가 줄어드는 효과를 얻게 되는 원리
+
+### **5) Shenandoah GC**
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/854c3613-24b6-410f-9982-dfa5aacd905c/8bb9df94-33b9-41b7-9fe8-99f14e3132f4/image.png)
+
+- Java 12에 release
+- 레드 햇에서 개발한 GC
+- 기존 CMS가 가진 단편화, G1이 가진 pause의 이슈를 해결
+- 강력한 Concurrency와 가벼운 GC 로직으로 
+heap 사이즈에 영향을 받지 않고 일정한 pause 시간이 소요가 특징
+
+## 5. JVM관점에 static을 왜 조심해서 써야하는지 서술하시오
+
+### 1) 메모리 누수의 위험
+
+  static인 변수, 메서드는 Method 영역에 저장이 됨
+  
+
+### 2) 동시성 문제
+
+또한, 메서드 영역은 모든 스레드가 참조 가능하기 때문에
+여러 스레드가 한번에 특정 변수, 메서드에 접근하면 문제가 될 수 있음
+
+## 6. 자바에서 OOP와 추상화, 캡슐화에 대해 정의하고 
+추상화와 캡슐화의 차이점에 대해 서술하시오
+
+(OOP설명시 SOLID(객체지향 5대원칙)포함해야함)
+
+## 1) OOP(Object-Oriented Programming)
+
+### 정의
+
+  객체 지향 프로그램을 말한다. 객체 지향 프로그램이란
+  프로그램을 객체들의 상호작용으로 구성하는 프로그램을 말한다
+
+  객체는 자신을 나타내는 **데이터(필드)**와 
+  그 데이터를 처리하는 **메서드**로 이루져 있으며,
+  이는 현실 세계에 물체를 잘 반영할 수 있다는 장점이 있다
+
+### 특징
+
+- **추상화(Abstraction):** 복잡한 시스템을 단순화하여 필요한 부분만을 모델링
+- **캡슐화(Encapsulation):** 객체의 내부 상태를 외부로부터 보호하고, 인터페이스를 통해 접근
+- **상속(Inheritance):** 기존 클래스의 특성을 물려받아 새로운 클래스를 생성
+- **다형성(Polymorphism):** 동일한 인터페이스를 상속받아도 다양한 방식으로 동작
+
+### SOLID원칙
+
+  SOLID란 객체 지향 설계의 5대 원칙을 의미한다
+  각각의 윈칙은 객체 지향의 장점을 극대화 할 수 있도록 
+  도와주는 가이드라인이라고 보면 된다
+
+1. **Single Responsibility Principle (SRP) - 단일 책임 원칙**
+    
+     클래스(객체)는 단 하나의 **책임**만 가져야한다는 원칙
+     여기서 **책임** 이라는 의미는 하나의 **기능 담당**으로 보면됨
+    
+    **하는 이유**
+    
+     만일 하나의 클래스에 기능(책임)이 여러개 있다면 
+     기능 변경(수정) 이 일어났을때 수정해야할 코드가 많아진다.
+    
+     예를 들어 A를 고쳤더니 B를 수정해야하고 또 C를 수정해야하고, 
+     C를 수정했더니 다시 A로 돌아가서 수정하는, 마치 책임이 순환되는 형태가 되어버린다.
+    
+     따라서 SRP 원칙을 따름으로써 **한 책임의 변경으로부터 
+     다른 책임의 변경으로의 연쇄작용**을 극복할 수 있게 된다.
+    
+2. **Open-Closed Principle (OCP) - 개방-폐쇄 원칙**
+    
+     클래스는 **확장에 열려있어야 하며, 수정에는 닫혀있어야 한다**를 뜻한다.
+    
+    기능 추가 요청이 오면 **클래스를 확장을 통해 손쉽게 구현**하면서, 
+    **확장에 따른 클래스 수정은 최소화** 하도록 프로그램을 작성해야 하는 설계 기법이다.
+    
+    - [ 확장에 열려있다 ] - 새로운 변경 사항이 발생했을 때 유연하게 코드를 추가함으로써 큰 힘을 들이지 않고 애플리케이션의 기능을 확장할 수 있음
+    - [ 변경에 닫혀있다 ] - 새로운 변경 사항이 발생했을 때 객체를 직접적으로 수정을 제한함.
+    
+    즉, **다형성과 확장**을 가능케 하는 객체지향의 장점을 극대화하는 기본적인 설계 원칙
+    
+3. **Liskov Substitution Principle (LSP) - 리스코프 치환 원칙**
+    
+    **서브 타입**은 언제나 **기반(부모) 타입**으로 교체할 수 있어야 한다는 원칙이다.
+    객체 지향의 **다형성**의 장점을 극대화 시키기 위한 원칙이라고 보면 된다.
+    
+    예를 들어 **B**라는 객체가 **A**라는 객체를 상속받았다고 한다면,
+    B를 A b1 = new A()로 부모 객체로 선언을 해도
+    b1이 A에 있는 메서드를 충실히 수행해야 한다는 것
+    
+    종합하면  **다형성의 특징을 이용**하기 위해 
+    상위 클래스 타입으로 객체를 선언하여 하위 클래스의 인스턴스를 받으면,
+    업캐스팅(하위 클래스가 상위 클래스로 선언)된 상태에서 
+    부모의 메서드를 사용해도 동작이 의도대로흘러가야 하는 것을 의미한다
+    
+4. **Interface Segregation Principle (ISP) - 인터페이스 분리 원칙**
+    
+    객체는 자신이 사용하는 메서드에만 의존해야한다는 원칙
+    
+    쉽게 말해, 특정 객체를 위해 인터페이스를 구구절절 적기보다,
+    **단일 기능에 초점을 맞추어 여러개 만들어 한다**는 의미
+    
+    SRP 원칙이 클래스의 단일 책임을 강조한다면, 
+    ISP는 **인터페이스의 단일 책임**을 강조하는 것으로 보면 된다.
+    
+    이를 통해 인터페이스가 가능한 다중 상속의 장점을 극대화 할 수 있다
+    
+5. **Dependency Inversion Principle (DIP) - 의존성 역전 원칙**
+    
+    어떤 Class를 참조해서 사용해야하는 상황이 생긴다면, 그 Class를 직접 참조하는 것이 아니라 그 대상의 **상위 요소(추상 클래스 or 인터페이스)로 참조하라**는 원칙
+    
+    쉽게 이야기해서 구현 클래스에 의존하지 말고, **인터페이스에 의존**하라는 뜻
+    이는 클래스는 비교적 수정할 일이 많은데 비해, 인터페이스는 거의 수정하지 않기 때문이다
+    
+
+## 7. Java에서 예외에 대해 서술하시오
+
+### 1) 예외 처리의 목적
+
+예외 처리는 프로그램 실행 중 발생할 수 있는 예외 상황을 적절히 처리하여, 프로그램의 **비정상 종료를 방지**하고 **예측 가능한 프로그램 동작을 유지**하는 데 있다.
+
+또한, 예외 상황을 사용자에게 알려 대응하도록 만들고, 
+예외 정보를 기록해 문제의 원인을 파악하는 데에도 도움을 줄 수 있다
+
+### 2) 예외 처리의 의미
+
+예외 처리는 프로그램 실행 중 예기치 않은 상황(예외)이나 오류가 발생했을 때, 이를 적절히 감지하고 처리하여 **프로그램의 정상적인 흐름을 유지**하는 것을 의미한다.
+
+Java에서는 `try`, `catch`, `finally`, `throw`, `throws` 키워드를 사용하여 예외를 처리한다
+
+- **try 블록:** 예외가 발생할 가능성이 있는 코드를 감싸는 블록
+- **catch 블록:** 발생한 예외를 처리하는 블록
+- **finally 블록:** 예외 발생 여부와 상관없이 항상 실행되는 블록
+- **throw 키워드:** 예외를 직접 발생시킬 때 사용
+- **throws 키워드:** 메서드가 특정 예외를 던질 수 있음을 선언할 때 사용
+    
+    **예시**
+    
+    ```java
+    **public class ExceptionExample {
+        public static void main(String[] args) {
+            try {                                        //이 안의 코드를 실행하고
+                int[] numbers = {1, 2, 3};
+                System.out.println(numbers[5]); 
+            } catch (ArrayIndexOutOfBoundsException e) { //예외 발생하면 이 안의 코드를 실행
+                System.out.println("예외 발생: 배열 인덱스가 범위를 벗어났습니다.");
+            } finally {                                  //최종적으로 실행할 코드
+                System.out.println("프로그램 종료.");
+            }
+        }
+    }**
+    ```
+    
+    - **일부러 예외를 왜 발생시킴?**
+        
+        개발을 하다보면, 모든 사용자랑 코드가 내맘대로 진행되면 좋겠지만,
+        그렇지 않을 때에는 어떤 식으로 코드를 진행해야 할 때가 온다.
+        
+        예를 들어 회원가입에 아무 값도 입력을 안하면 Java에서는 에러가 나겠지만,
+        그럴때마다 웹사이트가 터져버리면 아무도 사용하지 않을 것이다.
+        
+        따라서 개발자는 이러한 예외가 나면 이를 어떻게 처리할지 테스트 해보기 위해
+        `throw`를 사용하는 것이다
+        
+
+### 3) 오류와 예외의 차이점
+
+우리가 생각 했을 때 실행이 안되면 전부 에러라고 느끼지만, 
+Java에서는 이를 **오류(Error)**와 **예외(Exception)**으로 구분한다
+
+- **오류 (Error)**
+    
+     JVM(Java Virtual Machine) 자체의 **심각한 문제**를 나타낸다.
+     환경 자체에서 치명적 문제가 발생한 경우로, 
+     개발자가 예측하기도 힘들고 대처도 어려운 경우를 말한다.
+    
+     예를 들어 시스템 OS의 충돌이라던가, 메모리 문제 등 
+     개발자의 잘못이라기보단 사고에 당한 느낌이라 볼 수 있다.
+    
+- **예외 (Exception)**
+    
+     프로그램 실행 중 발생할 수 있는 다양한 **문제**를 나타낸다. 
+     예외는 확인된 예외(Checked Exception)과 
+     확인되지 않은 예외(Unchecked Excepiton)으로 나누어진다
+    
+    | **구분** | **오류 (Error)** | **예외 (Exception)** |
+    | --- | --- | --- |
+    | **정의** | JVM 자체의 심각한 문제를 나타내며, 애플리케이션에서 복구할 수 없는 상황 | 프로그램 실행 중 발생할 수 있는 다양한 문제를 나타내며, 애플리케이션에서 적절히 처리할 수 있는 상황 |
+    | **예시** | `OutOfMemoryError`
+    (메모리가 부족할 때 발생), `StackOverflowError`
+    (스택크기를 초과할 때 발생) | `NullPointerException`
+    (Null 인 객체를 호출),
+    `IOException`
+    (파일 입출력 작업 중 문제가 발생), `ArithmeticException`
+    (0으로 나누기를 시도할 때) |
+    | **처리 가능 여부** | 대부분 처리 불가능, 
+    애플리케이션에서 복구 시도하지 않음 | 적절한 예외 처리를 통해 복구 가능 |
+
+### 4) 확인된 예외와 확인되지 않은 예외의 차이점
+
+여기서 확인하고, 안하고의 주체는 **컴파일러(javac)**이다
+컴파일러가 생각했을 때, 
+
+**확인된 예외 (Checked Exception):** 
+
+ 자바 컴파일러가 **프로그램 작성 시점**에 해당 예외가 발생할 가능성이 있는 지를 
+ 미리 “확인(Check)”하고, **개발자가 이를 처리하도록 강제**하는 예외 유형
+
+ 주로 외부 자원과 상호작용할 때 많이 발생한다.  
+`IOException`이 대표적으로, 개발자는 이를 예외 처리 하지 않으면
+ 코드를 실행할 수 없다
+
+**확인되지 않은 예외 (Unchecked Exception):** 
+
+ 주로 프로그래밍 **로직의 오류**나 잘못된 사용으로 인해 발생하며,
+ 자바 컴파일러는 이를 처리할 것을 강제하지 않는다.
+
+ 다시 말하지만 여기서 확인하는 주체는 “컴파일러”이다.
+ 따라서 다음과 같이 바보같은 코드도 컴파일러는 확인되지 않은 예외로 여긴다
+
+```java
+public class UncheckedExceptionExample {
+    public static void main(String[] args) {
+        int[] numbers = {1, 2, 3};
+        // 인덱스 5는 배열 범위를 벗어나므로 예외 발생
+        System.out.println(numbers[5]);
+    }
+}
+
+```
+
+## 8. 자바의 클래스 인스턴스 변수 초기화 순서에 대해서 설명하라
+
+### 인스턴스 변수
+
+  `new` 로 객체를 생성했을 때 개별적으로 존재하는 변수
+
+### 초기화 순서
+
+1. **기본값 할당:**
+    - 모든 인스턴스 변수는 객체 생성 시 해당 타입의 기본값으로 자동 초기화
+    - 예를 들어, `int`는 `0`, `boolean`은 `false`, 참조 타입은 `null`로 초기화됩니다.
+2. **명시적 초기화:**
+    - 인스턴스 변수를 선언할 때 직접 초기값을 지정합니다.
+    - 예: `int age = 25;`
+3. **인스턴스 초기화 블록 실행:**
+    - 클래스 내에 `{}`로 둘러싸인 초기화 블록을 작성할 수 있습니다.
+    - 이 블록은 인스턴스 변수가 초기화되는 동안 실행됩니다.
+    - 주로 복잡한 초기화 로직이 필요할 때 사용됩니다.
+4. **생성자 실행:**
+    - 객체가 생성될 때 호출되는 특별한 메서드입니다.
+    - 생성자 내에서 추가적인 초기화 작업을 수행할 수 있습니다.
+    - 생성자는 클래스 당 여러 개가 있을 수 있으며, 매개변수에 따라 오버로딩(overloading)이 가능합니다.
+
+### 예시
+
+```java
+public class Example {
+    // 1. 인스턴스 변수 선언시 기본값 할당
+    // num = 0, text = null
+    
+    // 2. 명시적 초기화
+    int number = 10;
+    String text;
+    
+    // 3. 인스턴스 초기화 블록
+    {
+        System.out.println("인스턴스 초기화 블록 실행");
+        text = "Hello";
+        number = 20;
+    }
+    
+    // 4. 생성자
+    public Example() {
+        System.out.println("생성자 실행");
+        number = 30;
+        text = "World";
+    }
+}
+
+```
+
+1. **기본값 할당:**
+    - `number`는 `0`으로, `text`는 `null`로 초기화
+2. **명시적 초기화:**
+    - `number`는 `10`으로 설정
+3. **인스턴스 초기화 블록 실행:**
+    - "인스턴스 초기화 블록 실행"이 출력
+    - `text`는 `"Hello"`로, `number`는 `20`으로 변경됩니다.
+4. **생성자 실행:**
+    - "생성자 실행"이 출력됩니다.
+    - `number`는 `30`으로, `text`는 `"World"`로 변경됩니다.
+
+### 상속 관계의 경우
+
+부모 클래스의 인스턴스 초기화 블록 →
+부모 클래스의 생성자 →
+자식 클래스 인스턴스 초기화 블록 →
+자식 클래스 생성자
+순으로 진행
+
+```java
+class Parent {
+    int parentVar = 100;
+    
+    {
+        System.out.println("Parent 인스턴스 초기화 블록");
+    }
+    
+    public Parent() {
+        System.out.println("Parent 생성자");
+    }
+}
+
+class Child extends Parent {
+    int childVar = 200;
+    
+    {
+        System.out.println("Child 인스턴스 초기화 블록");
+    }
+    
+    public Child() {
+        System.out.println("Child 생성자");
+    }
+    
+    public void display() {
+        System.out.println("parentVar: " + parentVar);
+        System.out.println("childVar: " + childVar);
+    }
+}
+
+public class InheritanceExample {
+    public static void main(String[] args) {
+        Child obj = new Child();
+        obj.display();
+    }
+}
+
+```
+
+출력값
+
+Parent 인스턴스 초기화 블록
+Parent 생성자
+Child 인스턴스 초기화 블록
+Child 생성자
+parentVar: 100
+childVar: 200
